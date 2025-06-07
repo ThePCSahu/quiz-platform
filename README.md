@@ -7,6 +7,10 @@
 
 > A modern web-based quiz application for taking timed practice tests with immediate feedback ✨
 
+## 🌐 Live Demo
+
+Try the application here: [Quiz Platform](https://thepcsahu.github.io/quiz-platform/)
+
 ## ✨ Features
 
 - 🎮 Interactive quiz interface with real-time tracking
