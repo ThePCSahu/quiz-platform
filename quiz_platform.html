@@ -129,6 +129,17 @@
             box-shadow: 0 10px 20px rgba(0, 128, 128, 0.3);
         }
 
+        .btn-home {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            margin-left: 10px;
+        }
+
+        .btn-home:hover {
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(44, 62, 80, 0.3);
+        }
+
         .timer-section {
             background: #2c3e50;
             color: white;
@@ -188,11 +199,15 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.8);
-            display: flex;
+            display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
             backdrop-filter: blur(5px);
+        }
+
+        .pause-overlay.show {
+            display: flex;
         }
 
         .pause-message {
@@ -214,6 +229,12 @@
             color: #6c757d;
             margin-bottom: 30px;
             line-height: 1.6;
+        }
+
+        .pause-message .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
         }
 
         .final-time {
@@ -667,6 +688,51 @@
         .print-only {
             display: none;
         }
+
+        .exit-confirmation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .exit-confirmation.show {
+            display: flex;
+        }
+
+        .exit-message {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            max-width: 400px;
+        }
+
+        .exit-message h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .exit-message p {
+            color: #6c757d;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .exit-message .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -747,6 +813,7 @@
             <div class="controls">
                 <button class="btn" onclick="showAnswerReview()">Review Answers</button>
                 <button class="btn btn-secondary" onclick="resetQuiz()">Take Again</button>
+                <button class="btn btn-home" onclick="goToHome()">Back to Home</button>
             </div>
         </div>
 
@@ -758,6 +825,7 @@
             <div class="controls">
                 <button class="btn" id="submit-btn" onclick="submitQuiz()">Submit Quiz</button>
                 <button class="btn btn-secondary" onclick="resetQuiz()">Reset Quiz</button>
+                <button class="btn btn-home" onclick="showExitConfirmation()">Back to Home</button>
             </div>
         </div>
 
@@ -766,11 +834,25 @@
         </div>
 
         <!-- Pause Overlay -->
-        <div class="pause-overlay hidden" id="pause-overlay">
+        <div class="pause-overlay" id="pause-overlay">
             <div class="pause-message">
                 <h3>Test Paused</h3>
-                <p>Your test is currently paused. The timer has stopped and questions are hidden for security. Click resume to continue.</p>
-                <button class="btn timer-btn resume" onclick="toggleTimer()">Resume Test</button>
+                <p>Your test is currently paused. The timer has stopped and questions are hidden for security.</p>
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="toggleTimer()">Resume</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Exit Confirmation Overlay -->
+        <div class="exit-confirmation" id="exit-confirmation">
+            <div class="exit-message">
+                <h3>Exit Test?</h3>
+                <p>Are you sure you want to exit the test? All your progress will be lost and cannot be recovered.</p>
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="hideExitConfirmation()">Continue</button>
+                    <button class="btn btn-home" onclick="confirmAndExit()">Exit</button>
+                </div>
             </div>
         </div>
     </div>
@@ -785,6 +867,84 @@
         let timerInterval = null;
         let isPaused = false;
         let timerDurationMs = 30 * 60 * 1000; // Default 30 minutes
+
+        // State Management Functions
+        function saveQuizState() {
+            const state = {
+                questionsData,
+                userAnswers,
+                quizSubmitted,
+                startTime,
+                elapsedTime,
+                isPaused,
+                timerDurationMs,
+                isQuizActive: !document.getElementById('quiz-container').classList.contains('hidden')
+            };
+            localStorage.setItem('quizState', JSON.stringify(state));
+        }
+
+        function loadQuizState() {
+            const savedState = localStorage.getItem('quizState');
+            // Ensure exit confirmation is hidden before any state restoration
+            document.getElementById('exit-confirmation').classList.add('hidden');
+            
+            if (savedState) {
+                try {
+                    const state = JSON.parse(savedState);
+                    
+                    // If quiz was submitted or no questions data, don't restore state
+                    if (state.quizSubmitted || !state.questionsData) {
+                        clearQuizState();
+                        return;
+                    }
+
+                    questionsData = state.questionsData;
+                    userAnswers = state.userAnswers;
+                    quizSubmitted = state.quizSubmitted;
+                    startTime = state.startTime;
+                    elapsedTime = state.elapsedTime;
+                    isPaused = state.isPaused;
+                    timerDurationMs = state.timerDurationMs;
+
+                    // If quiz was in progress, restore the UI
+                    if (questionsData) {
+                        // Hide the JSON input section first
+                        document.getElementById('json-input-section').classList.add('hidden');
+                        
+                        // Load questions and restore answers
+                        loadQuestions();
+                        
+                        // Show quiz container since we know it wasn't submitted
+                        document.getElementById('quiz-container').classList.remove('hidden');
+                        document.getElementById('stats-bar').classList.remove('hidden');
+                        
+                        // Restore timer state
+                        if (isPaused) {
+                            document.getElementById('pause-btn').textContent = 'Resume';
+                            document.getElementById('pause-btn').className = 'timer-btn resume';
+                            document.getElementById('pause-overlay').classList.remove('show');
+                            document.getElementById('timer-section').classList.remove('hidden');
+                        } else {
+                            document.getElementById('timer-section').classList.remove('hidden');
+                            startTimer();
+                        }
+                        
+                        // Update stats
+                        updateStats();
+                        showSuccess('Quiz state restored from your last session.');
+                    }
+                } catch (error) {
+                    console.error('Error restoring quiz state:', error);
+                    clearQuizState();
+                }
+            }
+        }
+
+        function clearQuizState() {
+            localStorage.removeItem('quizState');
+            // Ensure exit confirmation is hidden when clearing state
+            document.getElementById('exit-confirmation').classList.add('hidden');
+        }
 
         // Timer functions
         function startTimer() {
@@ -848,7 +1008,7 @@
                 startTime = Date.now() - elapsedTime;
                 timerInterval = setInterval(updateTimerDisplay, 1000);
                 
-                document.getElementById('pause-overlay').classList.add('hidden');
+                document.getElementById('pause-overlay').classList.remove('show');
                 document.getElementById('pause-btn').textContent = 'Pause';
                 document.getElementById('pause-btn').className = 'timer-btn pause';
             } else {
@@ -856,10 +1016,11 @@
                 isPaused = true;
                 stopTimer();
                 
-                document.getElementById('pause-overlay').classList.remove('hidden');
+                document.getElementById('pause-overlay').classList.add('show');
                 document.getElementById('pause-btn').textContent = 'Resume';
                 document.getElementById('pause-btn').className = 'timer-btn resume';
             }
+            saveQuizState(); // Save state after timer toggle
         }
 
         function resetTimer() {
@@ -894,11 +1055,14 @@
                 const jsonData = JSON.parse(jsonText);
                 if (validateJSONStructure(jsonData)) {
                     questionsData = jsonData;
+                    userAnswers = {}; // Reset answers when loading new questions
+                    quizSubmitted = false; // Reset submission state
                     loadQuestions();
                     hideJsonInput();
                     showQuizContainer();
                     showSuccess('Questions loaded successfully!');
-                    startTimer(); // Start timer when questions are loaded
+                    startTimer();
+                    saveQuizState(); // Save state after loading new questions
                 } else {
                     showError('Invalid JSON structure. Please check the format.');
                 }
@@ -988,24 +1152,29 @@
                 questionDiv.className = 'question';
                 questionDiv.setAttribute('data-question', q.id);
                 
+                // Add 'answered' class if this question was answered
+                if (userAnswers[`q${q.id}`]) {
+                    questionDiv.classList.add('answered');
+                }
+                
                 questionDiv.innerHTML = `
                     <div class="question-number">Question ${index + 1}:</div>
                     <div class="question-text">${q.question}</div>
                     <div class="options">
-                        <div class="option">
-                            <input type="radio" name="q${q.id}" value="A" id="q${q.id}a">
+                        <div class="option ${userAnswers[`q${q.id}`] === 'A' ? 'selected' : ''}">
+                            <input type="radio" name="q${q.id}" value="A" id="q${q.id}a" ${userAnswers[`q${q.id}`] === 'A' ? 'checked' : ''}>
                             <label for="q${q.id}a">${q.options.A}</label>
                         </div>
-                        <div class="option">
-                            <input type="radio" name="q${q.id}" value="B" id="q${q.id}b">
+                        <div class="option ${userAnswers[`q${q.id}`] === 'B' ? 'selected' : ''}">
+                            <input type="radio" name="q${q.id}" value="B" id="q${q.id}b" ${userAnswers[`q${q.id}`] === 'B' ? 'checked' : ''}>
                             <label for="q${q.id}b">${q.options.B}</label>
                         </div>
-                        <div class="option">
-                            <input type="radio" name="q${q.id}" value="C" id="q${q.id}c">
+                        <div class="option ${userAnswers[`q${q.id}`] === 'C' ? 'selected' : ''}">
+                            <input type="radio" name="q${q.id}" value="C" id="q${q.id}c" ${userAnswers[`q${q.id}`] === 'C' ? 'checked' : ''}>
                             <label for="q${q.id}c">${q.options.C}</label>
                         </div>
-                        <div class="option">
-                            <input type="radio" name="q${q.id}" value="D" id="q${q.id}d">
+                        <div class="option ${userAnswers[`q${q.id}`] === 'D' ? 'selected' : ''}">
+                            <input type="radio" name="q${q.id}" value="D" id="q${q.id}d" ${userAnswers[`q${q.id}`] === 'D' ? 'checked' : ''}>
                             <label for="q${q.id}d">${q.options.D}</label>
                         </div>
                     </div>
@@ -1030,6 +1199,7 @@
                     e.target.closest('.option').classList.add('selected');
                     
                     updateStats();
+                    saveQuizState(); // Save state after each answer change
                 }
             });
             
@@ -1045,8 +1215,6 @@
         }
 
         function submitQuiz() {
-            // Remove the check for answered questions since we want to allow submission with 0 answers
-            // Stop timer and calculate final time
             stopTimer();
             const finalTime = formatTime(elapsedTime);
             document.getElementById('final-time').textContent = finalTime;
@@ -1056,6 +1224,7 @@
             
             const result = calculateResults();
             displayResults(result);
+            saveQuizState(); // Save state after submission
         }
 
         function calculateResults() {
@@ -1090,6 +1259,9 @@
             document.getElementById('timer-section').classList.add('hidden');
             document.getElementById('results').classList.add('show');
             document.getElementById('results').classList.remove('hidden');
+
+            // Clear the state after showing results
+            clearQuizState();
         }
 
         function showAnswerReview() {
@@ -1198,11 +1370,14 @@
                 showQuizContainer();
                 document.getElementById('results').classList.remove('show');
                 document.getElementById('results').classList.add('hidden');
-                startTimer(); // Restart timer for new attempt
+                startTimer();
             } else {
                 showJsonInput();
                 hideQuizContainer();
             }
+            
+            // Clear saved state
+            clearQuizState();
             
             // Scroll to top
             const questionContainer = document.querySelector('.question-container');
@@ -1410,6 +1585,110 @@
             document.body.appendChild(dlAnchor);
             dlAnchor.click();
             document.body.removeChild(dlAnchor);
+        });
+
+        // Add DOMContentLoaded event listener at the end of the script
+        document.addEventListener('DOMContentLoaded', function() {
+            // Try to restore state immediately when page loads
+            loadQuizState();
+            
+            // Add beforeunload event listener to warn about unsaved progress
+            window.addEventListener('beforeunload', function(e) {
+                if (questionsData && !quizSubmitted) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                    return '';
+                }
+            });
+        });
+
+        // Modify exit confirmation functions
+        function showExitConfirmation() {
+            // Only show confirmation if quiz is active and not submitted
+            const quizContainer = document.getElementById('quiz-container');
+            const isQuizActive = !quizContainer.classList.contains('hidden');
+            const isQuizSubmitted = document.getElementById('results').classList.contains('show');
+            
+            if (isQuizActive && !isQuizSubmitted) {
+                document.getElementById('exit-confirmation').classList.add('show');
+            } else {
+                goToHome();
+            }
+        }
+
+        function hideExitConfirmation() {
+            document.getElementById('exit-confirmation').classList.remove('show');
+        }
+
+        function confirmAndExit() {
+            hideExitConfirmation();
+            goToHome();
+        }
+
+        // Modify goToHome to hide both modals
+        function goToHome() {
+            // Ensure both modals are hidden
+            hideExitConfirmation();
+            document.getElementById('pause-overlay').classList.remove('show');
+            
+            // Stop timer if it's running
+            if (timerInterval) {
+                stopTimer();
+            }
+            
+            // Clear all state
+            clearQuizState();
+            
+            // Reset all variables
+            questionsData = null;
+            userAnswers = {};
+            quizSubmitted = false;
+            totalQuestions = 0;
+            startTime = null;
+            elapsedTime = 0;
+            timerInterval = null;
+            isPaused = false;
+            
+            // Reset timer display
+            document.getElementById('timer-display').textContent = '00:00:00';
+            
+            // Hide all sections
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('timer-section').classList.add('hidden');
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('stats-bar').classList.add('hidden');
+            document.getElementById('pause-overlay').classList.add('hidden');
+            
+            // Show the JSON input section
+            document.getElementById('json-input-section').classList.remove('hidden');
+            
+            // Clear the textarea
+            document.getElementById('jsonTextarea').value = '';
+            
+            // Reset timer duration to default
+            const durationInput = document.getElementById('timerDuration');
+            if (durationInput) {
+                durationInput.value = '30';
+                timerDurationMs = 30 * 60 * 1000;
+            }
+            
+            // Scroll to top
+            window.scrollTo(0, 0);
+            
+            showSuccess('Welcome back! You can start a new quiz.');
+        }
+
+        // Add keyboard event listener for Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (document.getElementById('exit-confirmation').classList.contains('show')) {
+                    hideExitConfirmation();
+                }
+                if (document.getElementById('pause-overlay').classList.contains('show')) {
+                    toggleTimer();
+                }
+            }
         });
     </script>
 </body>
