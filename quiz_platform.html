@@ -1299,14 +1299,12 @@
                 // Show the quiz container
                 const quizContainer = document.getElementById('quiz-container');
                 quizContainer.classList.remove('hidden');
-                
                 // Show answer indicators
                 questionsData.questions.forEach(q => {
                     const questionDiv = document.querySelector(`[data-question="${q.id}"]`);
                     const questionKey = `q${q.id}`;
                     const userAnswer = userAnswers[questionKey];
                     const correctAnswer = q.correct_answer;
-                    
                     // Style question based on result
                     questionDiv.classList.remove('correct-answer', 'incorrect-answer', 'unattempted-answer');
                     if (!userAnswer) {
@@ -1316,21 +1314,17 @@
                     } else {
                         questionDiv.classList.add('incorrect-answer');
                     }
-                    
                     // Style options
                     const options = questionDiv.querySelectorAll('.option');
                     options.forEach(option => {
                         const optionValue = option.querySelector('input').value;
                         const indicator = option.querySelector('.answer-indicator');
-                        
                         // Remove existing indicators
                         if (indicator) {
                             indicator.remove();
                         }
-                        
                         // Remove existing classes
                         option.classList.remove('correct', 'incorrect', 'user-selected');
-                        
                         // Add correct answer styling
                         if (optionValue === correctAnswer) {
                             option.classList.add('correct');
@@ -1339,7 +1333,6 @@
                             correctIndicator.textContent = 'Correct';
                             option.appendChild(correctIndicator);
                         }
-                        
                         // Add user answer styling (if different from correct)
                         if (userAnswer && optionValue === userAnswer && userAnswer !== correctAnswer) {
                             option.classList.add('user-selected');
@@ -1352,13 +1345,21 @@
                 });
             }
             
+            // Always hide quiz container after printing
+            const quizContainer = document.getElementById('quiz-container');
+            const afterPrintHandler = () => {
+                quizContainer.classList.add('hidden');
+                window.onafterprint = null;
+            };
+            window.onafterprint = afterPrintHandler;
+            
             // Trigger print
             window.print();
             
-            // Clean up
-            if (!includeQuestions) {
-                document.getElementById('quiz-container').classList.add('hidden');
-            }
+            // If the browser doesn't support onafterprint, fallback (delayed hide)
+            setTimeout(() => {
+                quizContainer.classList.add('hidden');
+            }, 1000);
         }
 
         // Download Example JSON functionality
