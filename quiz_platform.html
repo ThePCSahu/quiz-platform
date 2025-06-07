@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Online Practice Test</title>
+    <!-- Add PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Initialize PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <!-- Add QuizExtractor -->
+    <script src="llm-quiz-extractor.js"></script>
     <style>
         * {
             margin: 0;
@@ -744,6 +752,11 @@
 
         <div class="json-input-section" id="json-input-section">
             <div class="input-controls" style="margin-bottom: 20px; align-items: center; gap: 10px;">
+                <!-- Add PDF upload controls -->
+                <input type="file" id="pdfFileInput" accept=".pdf" style="display: none;" onchange="processPDF(event)">
+                <button class="btn btn-primary" onclick="document.getElementById('pdfFileInput').click()">Upload PDF</button>
+                <span style="margin: 0 10px; color: #666;">or</span>
+                <!-- Existing controls -->
                 <input type="file" id="jsonFileInput" accept=".json" style="display: none;" onchange="loadFromFile(event)">
                 <button class="btn btn-secondary" onclick="loadSampleData()">Load Sample</button>
                 <button class="btn btn-secondary" onclick="document.getElementById('jsonFileInput').click()">Load from JSON File</button>
@@ -1693,6 +1706,42 @@
                 }
             }
         });
+
+        // Add PDF processing function
+        async function processPDF(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                showError('Please select a PDF file');
+                return;
+            }
+
+            try {
+                // Initialize QuizExtractor with your Hugging Face token
+                const extractor = new window.QuizExtractor('HF_KEY');
+                
+                // Extract questions from PDF
+                const questions = await extractor.extractQuestionsFromPDF(file);
+                
+                // Format the questions for the textarea
+                const formattedQuestions = {
+                    questions: questions.map((q, index) => ({
+                        id: index + 1,
+                        question: q.question,
+                        options: q.options,
+                        correct_answer: q.correct_answer
+                    }))
+                };
+                
+                // Put the formatted questions in the textarea
+                document.getElementById('jsonTextarea').value = JSON.stringify(formattedQuestions, null, 2);
+                
+                // Load the questions
+                loadFromTextarea();
+                
+            } catch (error) {
+                showError('Error processing PDF: ' + error.message);
+            }
+        }
     </script>
 </body>
 </html>
