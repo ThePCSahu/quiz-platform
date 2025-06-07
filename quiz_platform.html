@@ -547,46 +547,111 @@
             }
         }
 
-        /* Add print-specific styles */
+        /* Update print-specific styles */
         @media print {
-            body * {
-                visibility: hidden;
+            html, body {
+                background: #fff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                box-shadow: none !important;
             }
-            .container, .container * {
+            body * {
                 visibility: visible;
             }
             .container {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
+                background: #fff !important;
+                box-shadow: none !important;
+                min-height: unset !important;
+                height: auto !important;
+                overflow: visible !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .question-container {
+                max-height: unset !important;
+                overflow: visible !important;
+                padding: 0 !important;
+                display: block !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
             }
             .json-input-section,
             .timer-section,
-            .stats-bar,
             .controls,
             .pause-overlay,
-            .no-print,
-            .print-options {
+            .print-options,
+            .no-print {
                 display: none !important;
             }
             .results {
                 display: block !important;
                 visibility: visible !important;
+                page-break-after: always !important;
+                background: #fff !important;
+                box-shadow: none !important;
             }
             .results.hidden {
                 display: block !important;
                 visibility: visible !important;
             }
-            .question-review {
-                page-break-inside: avoid;
-                margin: 20px 0;
-                padding: 15px;
+            .quiz-container {
+                display: block !important;
+                visibility: visible !important;
+                margin-top: 40px !important;
+                background: #fff !important;
+                box-shadow: none !important;
+            }
+            .quiz-container .controls {
+                display: none !important;
+            }
+            .quiz-container .question {
                 border: 1px solid #ddd;
-                border-radius: 8px;
+                margin-bottom: 20px;
+                padding: 15px;
+                background: #fff !important;
+                box-shadow: none !important;
+                display: block !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                overflow: visible !important;
+                /* Uncomment the next line to force each question to start on a new page (last resort): */
+                /* page-break-before: always !important; */
+            }
+            .quiz-container .option {
+                border: 1px solid #eee;
+                margin: 5px 0;
+                padding: 10px;
+                background: #fff !important;
+            }
+            .quiz-container .option.correct {
+                background-color: #d4edda !important;
+                border-color: #28a745 !important;
+            }
+            .quiz-container .option.incorrect {
+                background-color: #f8d7da !important;
+                border-color: #dc3545 !important;
+            }
+            .quiz-container .option.user-selected {
+                background-color: #fff3cd !important;
+                border-color: #ffc107 !important;
+            }
+            .quiz-container .answer-indicator {
+                display: inline-block !important;
+                padding: 2px 8px;
+                border-radius: 4px;
+                margin-left: 10px;
+                font-size: 0.9em;
+            }
+            .quiz-container .answer-indicator.correct {
+                background-color: #28a745 !important;
+                color: white !important;
+            }
+            .quiz-container .answer-indicator.user {
+                background-color: #ffc107 !important;
+                color: black !important;
             }
             .print-only {
-                display: block !important;
+                display: none !important;
             }
         }
         .print-only {
@@ -656,18 +721,7 @@
             </div>
             <div class="stat-item">
                 <div class="stat-value" id="remaining-count">0</div>
-                <div class="stat-label">Remaining</div>
-            </div>
-        </div>
-
-        <div id="quiz-container" class="hidden">
-            <div class="question-container" id="questions-container">
-                <!-- Questions will be loaded dynamically -->
-            </div>
-
-            <div class="controls">
-                <button class="btn" id="submit-btn" onclick="submitQuiz()">Submit Quiz</button>
-                <button class="btn btn-secondary" onclick="resetQuiz()">Reset Quiz</button>
+                <div class="stat-label">Unattempted</div>
             </div>
         </div>
 
@@ -687,10 +741,6 @@
                     <div class="result-number" id="incorrect-count">0</div>
                     <div class="result-label">Incorrect</div>
                 </div>
-                <div class="result-card result-unattempted">
-                    <div class="result-number" id="unattempted-count">0</div>
-                    <div class="result-label">Unattempted</div>
-                </div>
             </div>
             <div class="print-options" style="margin: 20px 0; text-align: center;">
                 <h3>Print Options</h3>
@@ -703,6 +753,17 @@
             <div class="controls">
                 <button class="btn" onclick="showAnswerReview()">Review Answers</button>
                 <button class="btn btn-secondary" onclick="resetQuiz()">Take Again</button>
+            </div>
+        </div>
+
+        <div id="quiz-container" class="hidden">
+            <div class="question-container" id="questions-container">
+                <!-- Questions will be loaded dynamically -->
+            </div>
+
+            <div class="controls">
+                <button class="btn" id="submit-btn" onclick="submitQuiz()">Submit Quiz</button>
+                <button class="btn btn-secondary" onclick="resetQuiz()">Reset Quiz</button>
             </div>
         </div>
 
@@ -1008,7 +1069,6 @@
             
             document.getElementById('correct-count').textContent = result.correct;
             document.getElementById('incorrect-count').textContent = result.incorrect;
-            document.getElementById('unattempted-count').textContent = result.unattempted;
             document.getElementById('percentage').textContent = `${percentage}% Correct`;
             
             document.getElementById('quiz-container').classList.add('hidden');
@@ -1231,56 +1291,73 @@
             reader.readAsText(file);
         }
 
-        // Update print function to print from current page
         function printResults(includeQuestions) {
-            const printContent = document.getElementById('print-content');
-            const result = calculateResults();
-            
-            // Clear previous content
-            printContent.innerHTML = '';
+            // Show the results section
+            document.getElementById('results').classList.remove('hidden');
             
             if (includeQuestions) {
-                const questionsReview = document.createElement('div');
-                questionsReview.className = 'questions-review';
+                // Show the quiz container
+                const quizContainer = document.getElementById('quiz-container');
+                quizContainer.classList.remove('hidden');
                 
+                // Show answer indicators
                 questionsData.questions.forEach(q => {
+                    const questionDiv = document.querySelector(`[data-question="${q.id}"]`);
                     const questionKey = `q${q.id}`;
                     const userAnswer = userAnswers[questionKey];
-                    const status = !userAnswer ? 'unattempted' : 
-                                 userAnswer === q.correct_answer ? 'correct' : 'incorrect';
+                    const correctAnswer = q.correct_answer;
                     
-                    const questionDiv = document.createElement('div');
-                    questionDiv.className = 'question-review';
-                    questionDiv.innerHTML = `
-                        <h3>Question ${q.id}</h3>
-                        <p>${q.question}</p>
-                        <div class="options">
-                            ${Object.entries(q.options).map(([key, value]) => `
-                                <div class="${key === q.correct_answer ? 'correct' : 
-                                           userAnswer === key ? 'user-selected' : ''}">
-                                    ${key}: ${value}
-                                    ${key === q.correct_answer ? ' (Correct)' : ''}
-                                    ${userAnswer === key && key !== q.correct_answer ? ' (Your Answer)' : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                        <p class="${status}">Status: ${status.charAt(0).toUpperCase() + status.slice(1)}</p>
-                    `;
-                    questionsReview.appendChild(questionDiv);
+                    // Style question based on result
+                    questionDiv.classList.remove('correct-answer', 'incorrect-answer', 'unattempted-answer');
+                    if (!userAnswer) {
+                        questionDiv.classList.add('unattempted-answer');
+                    } else if (userAnswer === correctAnswer) {
+                        questionDiv.classList.add('correct-answer');
+                    } else {
+                        questionDiv.classList.add('incorrect-answer');
+                    }
+                    
+                    // Style options
+                    const options = questionDiv.querySelectorAll('.option');
+                    options.forEach(option => {
+                        const optionValue = option.querySelector('input').value;
+                        const indicator = option.querySelector('.answer-indicator');
+                        
+                        // Remove existing indicators
+                        if (indicator) {
+                            indicator.remove();
+                        }
+                        
+                        // Remove existing classes
+                        option.classList.remove('correct', 'incorrect', 'user-selected');
+                        
+                        // Add correct answer styling
+                        if (optionValue === correctAnswer) {
+                            option.classList.add('correct');
+                            const correctIndicator = document.createElement('div');
+                            correctIndicator.className = 'answer-indicator correct';
+                            correctIndicator.textContent = 'Correct';
+                            option.appendChild(correctIndicator);
+                        }
+                        
+                        // Add user answer styling (if different from correct)
+                        if (userAnswer && optionValue === userAnswer && userAnswer !== correctAnswer) {
+                            option.classList.add('user-selected');
+                            const userIndicator = document.createElement('div');
+                            userIndicator.className = 'answer-indicator user';
+                            userIndicator.textContent = 'Your Answer';
+                            option.appendChild(userIndicator);
+                        }
+                    });
                 });
-                
-                printContent.appendChild(questionsReview);
             }
-            
-            // Show the results section if it's hidden
-            document.getElementById('results').classList.remove('hidden');
             
             // Trigger print
             window.print();
             
-            // Hide the print content after printing
+            // Clean up
             if (!includeQuestions) {
-                printContent.innerHTML = '';
+                document.getElementById('quiz-container').classList.add('hidden');
             }
         }
     </script>
