@@ -667,10 +667,12 @@
         </div>
 
         <div class="json-input-section" id="json-input-section">
-            <h3>Enter Questions JSON Data</h3>
-            <div class="input-controls" style="margin-bottom: 20px;">
+            <div class="input-controls" style="margin-bottom: 20px; align-items: center; gap: 10px;">
                 <input type="file" id="jsonFileInput" accept=".json" style="display: none;" onchange="loadFromFile(event)">
-                <button class="btn btn-secondary" onclick="document.getElementById('jsonFileInput').click()">Load from File</button>
+                <button class="btn btn-secondary" onclick="loadSampleData()">Load Sample</button>
+                <label for="timerDuration" style="font-weight:bold; margin:0 5px 0 20px;">Timer Duration:</label>
+                <input type="number" id="timerDuration" min="1" max="999" value="30" style="width:80px; padding:8px 10px; border-radius:6px; border:1px solid #ccc; font-size:1em;">
+                <span style="margin-left:4px; color:#555; font-size:1em;">min</span>
             </div>
             <textarea 
                 id="jsonTextarea" 
@@ -680,8 +682,8 @@
             
             <div class="input-controls">
                 <button class="btn btn-success" onclick="loadFromTextarea()">Load Questions</button>
+                <button class="btn btn-success" onclick="document.getElementById('jsonFileInput').click()">Load from File</button>
                 <button class="btn btn-secondary" onclick="clearTextarea()">Clear</button>
-                <button class="btn btn-secondary" onclick="loadSampleData()">Load Sample</button>
             </div>
             
             <div class="sample-format">
@@ -790,16 +792,23 @@
         let elapsedTime = 0;
         let timerInterval = null;
         let isPaused = false;
+        let timerDurationMs = 30 * 60 * 1000; // Default 30 minutes
 
         // Timer functions
         function startTimer() {
+            // Get user-specified duration (only on first start)
             if (!startTime) {
-                startTime = Date.now() - elapsedTime;
+                const durationInput = document.getElementById('timerDuration');
+                if (durationInput) {
+                    const minutes = parseInt(durationInput.value, 10) || 30;
+                    timerDurationMs = minutes * 60 * 1000;
+                }
+                startTime = Date.now();
+                elapsedTime = 0;
             }
-            
+            updateTimerDisplay();
             timerInterval = setInterval(updateTimerDisplay, 1000);
             isPaused = false;
-            
             document.getElementById('timer-section').classList.remove('hidden');
             document.getElementById('pause-btn').textContent = 'Pause';
             document.getElementById('pause-btn').className = 'timer-btn pause';
@@ -815,8 +824,14 @@
         function updateTimerDisplay() {
             if (!isPaused && startTime) {
                 elapsedTime = Date.now() - startTime;
-                const timeString = formatTime(elapsedTime);
+                let remaining = timerDurationMs - elapsedTime;
+                if (remaining < 0) remaining = 0;
+                const timeString = formatTime(remaining);
                 document.getElementById('timer-display').textContent = timeString;
+                if (remaining === 0) {
+                    stopTimer();
+                    submitQuiz();
+                }
             }
         }
 
@@ -825,7 +840,6 @@
             const hours = Math.floor(totalSeconds / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
             const seconds = totalSeconds % 60;
-            
             return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
 
@@ -858,7 +872,14 @@
             document.getElementById('timer-display').textContent = '00:00:00';
             document.getElementById('timer-section').classList.add('hidden');
             document.getElementById('pause-overlay').classList.add('hidden');
+            // Reset timer duration to user input
+            const durationInput = document.getElementById('timerDuration');
+            if (durationInput) {
+                const minutes = parseInt(durationInput.value, 10) || 30;
+                timerDurationMs = minutes * 60 * 1000;
+            }
         }
+
         // Load questions from textarea
         function loadFromTextarea() {
             const textarea = document.getElementById('jsonTextarea');
