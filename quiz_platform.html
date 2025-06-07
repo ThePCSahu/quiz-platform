@@ -811,7 +811,7 @@
             </div>
             <div id="print-content" class="print-only"></div>
             <div class="controls">
-                <button class="btn" onclick="showAnswerReview()">Review Answers</button>
+                <button class="btn btn-success" onclick="showAnswerReview()">Review Answers</button>
                 <button class="btn btn-secondary" onclick="resetQuiz()">Take Again</button>
                 <button class="btn btn-home" onclick="goToHome()">Back to Home</button>
             </div>
@@ -823,7 +823,7 @@
             </div>
 
             <div class="controls">
-                <button class="btn" id="submit-btn" onclick="submitQuiz()">Submit Quiz</button>
+                <button class="btn btn-success" id="submit-btn" onclick="submitQuiz()">Submit Quiz</button>
                 <button class="btn btn-secondary" onclick="resetQuiz()">Reset Quiz</button>
                 <button class="btn btn-home" onclick="showExitConfirmation()">Back to Home</button>
             </div>
@@ -839,7 +839,7 @@
                 <h3>Test Paused</h3>
                 <p>Your test is currently paused. The timer has stopped and questions are hidden for security.</p>
                 <div class="button-group">
-                    <button class="btn btn-secondary" onclick="toggleTimer()">Resume</button>
+                    <button class="btn btn-success" onclick="toggleTimer()">Resume</button>
                 </div>
             </div>
         </div>
@@ -850,7 +850,7 @@
                 <h3>Exit Test?</h3>
                 <p>Are you sure you want to exit the test? All your progress will be lost and cannot be recovered.</p>
                 <div class="button-group">
-                    <button class="btn btn-secondary" onclick="hideExitConfirmation()">Continue</button>
+                    <button class="btn btn-success" onclick="hideExitConfirmation()">Continue</button>
                     <button class="btn btn-home" onclick="confirmAndExit()">Exit</button>
                 </div>
             </div>
@@ -917,6 +917,9 @@
                         // Show quiz container since we know it wasn't submitted
                         document.getElementById('quiz-container').classList.remove('hidden');
                         document.getElementById('stats-bar').classList.remove('hidden');
+                        
+                        // Explicitly enable the submit button since we know the quiz wasn't submitted
+                        document.getElementById('submit-btn').disabled = false;
                         
                         // Restore timer state
                         if (isPaused) {
