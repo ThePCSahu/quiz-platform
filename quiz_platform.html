@@ -119,6 +119,16 @@
             background: linear-gradient(135deg, #28a745, #20c997);
         }
 
+        .btn-print {
+            background: linear-gradient(135deg, #008080, #00CED1);
+        }
+
+        .btn-print:hover {
+            background: linear-gradient(135deg, #00CED1, #008080);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 128, 128, 0.3);
+        }
+
         .timer-section {
             background: #2c3e50;
             color: white;
@@ -729,8 +739,8 @@
             <div class="print-options" style="margin: 20px 0; text-align: center;">
                 <h3>Print Options</h3>
                 <div class="input-controls">
-                    <button class="btn" onclick="printResults(false)">Print Summary Only</button>
-                    <button class="btn" onclick="printResults(true)">Print with Questions & Answers</button>
+                    <button class="btn btn-print" onclick="printResults(false)">Print Summary Only</button>
+                    <button class="btn btn-print" onclick="printResults(true)">Print with Questions & Answers</button>
                 </div>
             </div>
             <div id="print-content" class="print-only"></div>
@@ -812,7 +822,13 @@
                 document.getElementById('timer-display').textContent = timeString;
                 if (remaining === 0) {
                     stopTimer();
-                    submitQuiz();
+                    // Auto submit regardless of answered questions
+                    quizSubmitted = true;
+                    document.getElementById('submit-btn').disabled = true;
+                    const finalTime = formatTime(elapsedTime);
+                    document.getElementById('final-time').textContent = finalTime;
+                    const result = calculateResults();
+                    displayResults(result);
                 }
             }
         }
@@ -1029,11 +1045,7 @@
         }
 
         function submitQuiz() {
-            if (Object.keys(userAnswers).length === 0) {
-                alert('Please answer at least one question before submitting.');
-                return;
-            }
-
+            // Remove the check for answered questions since we want to allow submission with 0 answers
             // Stop timer and calculate final time
             stopTimer();
             const finalTime = formatTime(elapsedTime);
